@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="マウスピース">
+<meta name="theme-color" content="#EDF3F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C151A" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<title>マウスピース時間</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: one narrow phone column — status first, then the 24h dial, today's log, 14-day history, settings */
+:root {
+  --bg: #EDF3F5;
+  --surface: #FFFFFF;
+  --ink: #13222B;
+  --muted: #5A6D77;
+  --line: #D3E0E5;
+  --track: #E3ECEF;
+  --wear: #16917F;
+  --wear-soft: #D3EEE9;
+  --mid: #4A7FBF;
+  --off: #D9801A;
+  --off-soft: #FCEBD3;
+  --bad: #CC4236;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --font-num: "Space Grotesk", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C151A; --surface: #14212A; --ink: #E5EEF1; --muted: #93A7B0; --line: #253842; --track: #1D2E37;
+    --wear: #3CC2AF; --wear-soft: #163A36; --mid: #6E9FDB; --off: #F0A445; --off-soft: #3A2A15; --bad: #F06B5D;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C151A; --surface: #14212A; --ink: #E5EEF1; --muted: #93A7B0; --line: #253842; --track: #1D2E37;
+  --wear: #3CC2AF; --wear-soft: #163A36; --mid: #6E9FDB; --off: #F0A445; --off-soft: #3A2A15; --bad: #F06B5D;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); color-scheme: light; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6; }
+.wrap {
+  max-width: 560px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; padding-inline: 4px; }
+.eyebrow { margin: 0; font-size: 12px; letter-spacing: .08em; color: var(--muted); }
+h1 { margin: 0; font-size: 22px; font-weight: 700; text-wrap: balance; }
+h2 { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
+.mode { font-size: 12px; color: var(--muted); text-align: right; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; min-width: 0; }
+
+/* status */
+.st-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.pill-on { color: var(--wear); background: var(--wear-soft); }
+.pill-off { color: var(--off); background: var(--off-soft); }
+.hint { margin: 12px 0 8px; font-size: 13px; color: var(--muted); }
+.chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--mid); outline-offset: 2px; }
+.chip { border: 1px solid var(--line); background: var(--bg); border-radius: 12px; padding: 12px 10px; font-weight: 500; text-align: left; display: flex; flex-direction: column; gap: 2px; }
+.chip small { font-size: 11px; color: var(--muted); font-weight: 400; }
+.chip:hover { border-color: var(--off); }
+.timer { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 52px; font-weight: 600; color: var(--off); line-height: 1.1; margin: 12px 0 6px; letter-spacing: -.01em; }
+.warn { margin: 0 0 10px; font-size: 13px; font-weight: 500; color: var(--bad); }
+.primary { width: 100%; border: 0; border-radius: 12px; padding: 14px; font-size: 17px; font-weight: 700; background: var(--wear); color: var(--surface); }
+.primary:hover { filter: brightness(1.05); }
+.late { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.late label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+input, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; min-width: 0; }
+.ghost { border: 1px solid var(--line); background: transparent; border-radius: 10px; padding: 8px 12px; font-size: 14px; }
+.ghost:hover { border-color: var(--ink); }
+.err { color: var(--bad); font-size: 13px; margin: 6px 0 0; }
+
+/* dial */
+.dialcard { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+#dial { width: 100%; max-width: 280px; height: auto; display: block; }
+.stats { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border-radius: 12px; overflow: hidden; }
+.stat { background: var(--surface); padding: 10px 12px; }
+.stat dt { font-size: 12px; color: var(--muted); }
+.stat dd { margin: 0; font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 600; }
+.stat dd.good { color: var(--wear); } .stat dd.warn-c { color: var(--off); } .stat dd.bad { color: var(--bad); }
+
+/* list */
+#today-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+#today-list li { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }
+#today-list li:last-child { border-bottom: 0; }
+#today-list .t { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 14px; }
+#today-list .why { font-size: 13px; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#today-list .d { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--off); }
+.del { border: 0; background: transparent; color: var(--muted); font-size: 12px; padding: 4px 6px; border-radius: 8px; }
+.del:hover { color: var(--bad); }
+.del.armed { color: var(--surface); background: var(--bad); }
+.empty { color: var(--muted); font-size: 13px; padding: 4px 0; margin: 0; }
+details { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+.form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.form .full { grid-column: 1 / -1; }
+
+/* history */
+.summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.summary div { display: flex; flex-direction: column; }
+.summary span { font-size: 12px; color: var(--muted); }
+.summary b { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 600; }
+.chart-wrap { overflow-x: auto; }
+#chart { width: 100%; min-width: 320px; height: auto; display: block; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.settings label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.note { font-size: 12px; color: var(--muted); margin: 10px 0 0; }
+@media (max-width: 380px) { .timer { font-size: 44px; } .summary b { font-size: 16px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">マウスピース装着記録</p>
+      <h1 id="today-label">今日</h1>
+    </div>
+    <span class="mode" id="mode-note">読み込み中…</span>
+  </header>
+
+  <section class="card" id="status" aria-live="polite">
+    <div id="st-on">
+      <div class="st-head"><span class="pill pill-on">装着中</span><span class="muted num" id="on-since"></span></div>
+      <p class="hint">外すときに理由をタップ</p>
+      <div class="chips">
+        <button class="chip" data-why="食事">食事<small>朝・昼・夜ごはん</small></button>
+        <button class="chip" data-why="間食・飲み物">間食・飲み物<small>水以外を飲むとき</small></button>
+        <button class="chip" data-why="歯みがき">歯みがき<small>マウスピースの洗浄も</small></button>
+        <button class="chip" data-why="その他">その他<small>通院・会話など</small></button>
+      </div>
+    </div>
+    <div id="st-off" hidden>
+      <div class="st-head"><span class="pill pill-off">外している</span><span class="muted" id="off-why"></span></div>
+      <div class="timer" id="off-timer">0:00:00</div>
+      <p class="warn" id="off-warn" hidden></p>
+      <button class="primary" id="btn-on">つけた</button>
+      <div class="late">
+        <label for="late-time">押し忘れたときは、つけた時刻を指定</label>
+        <div class="row">
+          <input type="time" id="late-time">
+          <button class="ghost" id="btn-late">この時刻につけた</button>
+        </div>
+        <p class="err" id="late-err" hidden></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card dialcard" aria-label="今日の24時間">
+    <svg id="dial" viewBox="0 0 260 260" role="img" aria-label="今日の装着状況を示す24時間の円"></svg>
+    <dl class="stats" id="today-stats"></dl>
+  </section>
+
+  <section class="card">
+    <h2>今日外した記録</h2>
+    <ul id="today-list"></ul>
+    <details id="add-details">
+      <summary>記録を手で追加する</summary>
+      <form class="form" id="add-form">
+        <label class="full">日付<input type="date" id="add-date" required></label>
+        <label>外した時刻<input type="time" id="add-from" required></label>
+        <label>つけた時刻<input type="time" id="add-to" required></label>
+        <label class="full">理由
+          <select id="add-why">
+            <option>食事</option><option>間食・飲み物</option><option>歯みがき</option><option>その他</option>
+          </select>
+        </label>
+        <div class="full row"><button class="ghost" type="submit" id="add-submit">追加</button><span class="muted" style="font-size:12px">つけた時刻が外した時刻より前なら翌日扱い</span></div>
+        <p class="err full" id="add-err" hidden></p>
+      </form>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>最近14日</h2>
+    <div class="summary" id="summary"></div>
+    <div class="chart-wrap"><svg id="chart" viewBox="0 0 360 190" role="img" aria-label="最近14日の装着時間"></svg></div>
+    <p class="legend">
+      <span><i style="background:var(--wear)"></i>目標達成</span>
+      <span><i style="background:var(--mid)"></i>最低ライン以上</span>
+      <span><i style="background:var(--bad)"></i>最低ライン未満</span>
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>目標</h2>
+    <div class="settings">
+      <label>自分の目標（時間/日）<input type="number" id="set-goal" min="12" max="23.5" step="0.5" class="num"></label>
+      <label>最低ライン（歯医者の指示）<input type="number" id="set-min" min="1" max="23.5" step="0.5" class="num"></label>
+    </div>
+    <p class="note">寝ている時間も装着時間に入ります。「外せる残り」は、目標から逆算した今日あと外していられる時間です。</p>
+  </section>
+  <section class="card">
+    <h2>バックアップ</h2>
+    <p class="note" style="margin:0 0 10px">記録はこのスマホのブラウザの中だけに保存されています。機種変更やブラウザのデータ削除に備えて、ときどき書き出しておくと安心です。</p>
+    <div class="row">
+      <button class="ghost" type="button" id="btn-export">記録を書き出す</button>
+      <label class="ghost" for="import-file" style="cursor:pointer">読み込む</label>
+      <input type="file" id="import-file" accept="application/json,.json" hidden>
+    </div>
+    <p class="note" id="backup-msg" hidden></p>
+  </section>
+</main>
+
+<script>
+(() => {
+  const H = 3600e3, KEY = "aligner-time-v1";
+  const DEFAULTS = { goal: 22, min: 12, offSince: null, offWhy: null, startedAt: null };
+  let S = { ...DEFAULTS };
+  let DAYS = {};            // "YYYY-MM-DD" -> [{id, s, e, why}]
+  let mode = "loading";     // loading | db | local
+  let stateRef = null, daysCol = null;
+  let pendingDel = null, pendingTimer = null;
+
+  const $ = (id) => document.getElementById(id);
+  const pad = (n) => String(n).padStart(2, "0");
+  const ymd = (t) => { const d = new Date(t); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+  const dayStart = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d).getTime(); };
+  const addDays = (s, n) => { const [y, m, d] = s.split("-").map(Number); return ymd(new Date(y, m - 1, d + n).getTime()); };
+  const clock = (t) => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const hm = (ms) => { const m = Math.max(0, Math.floor(ms / 60000)); return `${Math.floor(m / 60)}:${pad(m % 60)}`; };
+  const hms = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 3600)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`; };
+  const dur = (ms) => { const m = Math.max(0, Math.round(ms / 60000)); const h = Math.floor(m / 60); return h ? `${h}時間${m % 60}分` : `${m}分`; };
+  const hrs = (ms) => (ms / H).toFixed(1);
+  const rid = () => Math.random().toString(36).slice(2, 10);
+  const WD = ["日", "月", "火", "水", "木", "金", "土"];
+
+  /* ---------- storage ---------- */
+  const chains = {};
+  const chain = (k, fn) => { const p = (chains[k] || Promise.resolve()).then(fn, fn); chains[k] = p.catch(() => {}); return p; };
+  function saveLocal() { try { localStorage.setItem(KEY, JSON.stringify({ S, DAYS })); } catch (e) {} }
+  function loadLocal() {
+    try { const j = JSON.parse(localStorage.getItem(KEY) || "null"); if (j) { S = { ...DEFAULTS, ...j.S }; DAYS = j.DAYS || {}; } } catch (e) {}
+    if (!S.startedAt) { S.startedAt = dayStart(ymd(Date.now())); saveLocal(); }
+  }
+  function onWriteError(e) { setNote("保存できませんでした。通信状態を確認してください"); console.error(e); }
+  function persistState() {
+    if (mode === "db") return chain("state", () => stateRef.set({ ...S })).catch(onWriteError);
+    saveLocal();
+  }
+  function persistDay(date) {
+    if (mode === "db") {
+      const offs = DAYS[date] || [];
+      return chain("d" + date, () => offs.length ? daysCol.doc(date).set({ date, offs }) : daysCol.doc(date).delete()).catch(onWriteError);
+    }
+    saveLocal();
+  }
+  function setNote(t) { $("mode-note").textContent = t; }
+
+  /* ---------- computation ---------- */
+  function intervals(now) {
+    const list = [];
+    for (const d in DAYS) for (const e of DAYS[d]) list.push([e.s, e.e]);
+    if (S.offSince) list.push([S.offSince, now]);
+    return list;
+  }
+  function offIn(a, b, now) {
+    const xs = intervals(now).map(([s, e]) => [Math.max(s, a), Math.min(e, b)]).filter(([s, e]) => e > s).sort((x, y) => x[0] - y[0]);
+    let tot = 0, cs = -1, ce = -1;
+    for (const [s, e] of xs) { if (s > ce) { if (ce > cs) tot += ce - cs; cs = s; ce = e; } else ce = Math.max(ce, e); }
+    if (ce > cs) tot += ce - cs;
+    return tot;
+  }
+  function dayStats(date, now) {
+    const ds = dayStart(date), de = dayStart(addDays(date, 1));
+    const start = Math.max(ds, S.startedAt || ds), end = Math.min(de, now);
+    if (end <= start) return null;
+    const off = offIn(start, end, now);
+    return { ds, de, start, end, off, wear: end - start - off, partial: start > ds, done: end === de, possible: de - start };
+  }
+  function lastPutOn() {
+    let t = 0;
+    for (const d in DAYS) for (const e of DAYS[d]) if (e.e > t) t = e.e;
+    return t;
+  }
+
+  /* ---------- actions ---------- */
+  function takeOff(why) {
+    if (S.offSince || mode === "loading") return;
+    S = { ...S, offSince: Date.now(), offWhy: why };
+    persistState(); renderAll();
+  }
+  function putOn(at) {
+    if (!S.offSince) return;
+    const e = { id: rid(), s: S.offSince, e: Math.max(S.offSince, Math.min(at, Date.now())), why: S.offWhy || "その他" };
+    addEntry(e);
+    S = { ...S, offSince: null, offWhy: null };
+    persistState(); renderAll();
+  }
+  function addEntry(e) {
+    const date = ymd(e.s);
+    DAYS[date] = [...(DAYS[date] || []), e].sort((a, b) => a.s - b.s);
+    persistDay(date);
+  }
+  function delEntry(date, id) {
+    DAYS[date] = (DAYS[date] || []).filter((e) => e.id !== id);
+    if (!DAYS[date].length) delete DAYS[date];
+    persistDay(date); renderAll();
+  }
+
+  /* ---------- render: status + dial + stats (every second) ---------- */
+  function renderLive() {
+    const now = Date.now(), today = ymd(now);
+    const d = new Date(now);
+    $("today-label").textContent = `${d.getMonth() + 1}月${d.getDate()}日（${WD[d.getDay()]}）`;
+    const off = !!S.offSince;
+    $("st-on").hidden = off; $("st-off").hidden = !off;
+
+    const st = dayStats(today, now) || { start: now, end: now, off: 0, wear: 0, possible: 0, ds: dayStart(today), de: dayStart(addDays(today, 1)) };
+    const allowed = Math.max(0, st.possible - S.goal * H);
+    const remain = allowed - st.off;
+
+    if (off) {
+      $("off-timer").textContent = hms(now - S.offSince);
+      $("off-why").textContent = `${S.offWhy || "その他"}・${clock(S.offSince)}に外した`;
+      const w = $("off-warn");
+      if (remain < 0) { w.hidden = false; w.textContent = `今日の外せる時間を ${hm(-remain)} 超えています`; }
+      else if (remain < 15 * 60e3) { w.hidden = false; w.textContent = `目標まで外せるのはあと ${hm(remain)} です`; }
+      else w.hidden = true;
+    } else {
+      const lp = lastPutOn();
+      $("on-since").textContent = lp ? `${clock(lp)}から ${hm(now - lp)}` : "";
+    }
+
+    drawDial(st, now, remain);
+
+    const proj = st.possible - st.off;
+    const cls = (v) => v >= S.goal * H ? "good" : v >= S.min * H ? "warn-c" : "bad";
+    $("today-stats").innerHTML = `
+      <div class="stat"><dt>ここまでの装着</dt><dd>${hm(st.wear)}</dd></div>
+      <div class="stat"><dt>外した合計</dt><dd class="${st.off ? "warn-c" : ""}">${hm(st.off)}</dd></div>
+      <div class="stat"><dt>外せる残り（目標${S.goal}h）</dt><dd class="${remain < 0 ? "bad" : remain < 30 * 60e3 ? "warn-c" : "good"}">${remain < 0 ? "−" + hm(-remain) : hm(remain)}</dd></div>
+      <div class="stat"><dt>このままなら今日は</dt><dd class="${cls(proj)}">${hrs(proj)}<span style="font-size:13px"> 時間</span></dd></div>`;
+  }
+
+  function polar(f, r) { const a = f * 2 * Math.PI - Math.PI / 2; return [130 + r * Math.cos(a), 130 + r * Math.sin(a)]; }
+  function arcPath(f0, f1, r) {
+    f0 = Math.max(0, f0); f1 = Math.min(1, f1);
+    if (f1 - f0 <= 0) return "";
+    if (f1 - f0 >= 0.9999) return arcPath(0, 0.5, r) + " " + arcPath(0.5, 1, r);
+    const [x0, y0] = polar(f0, r), [x1, y1] = polar(f1, r);
+    return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${f1 - f0 > 0.5 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+  }
+  function drawDial(st, now, remain) {
+    const R = 100, len = st.de - st.ds, f = (t) => (t - st.ds) / len;
+    let s = `<circle cx="130" cy="130" r="${R}" fill="none" stroke="var(--track)" stroke-width="20"/>`;
+    s += `<path d="${arcPath(f(st.start), f(st.end), R)}" fill="none" stroke="var(--wear)" stroke-width="20"/>`;
+    for (const [a, b] of intervals(now)) {
+      const p = arcPath(f(Math.max(a, st.ds)), f(Math.min(b, st.end)), R);
+      if (p) s += `<path d="${p}" fill="none" stroke="var(--off)" stroke-width="20"/>`;
+    }
+    for (let h = 0; h < 24; h++) {
+      const [x0, y0] = polar(h / 24, 111), [x1, y1] = polar(h / 24, h % 6 ? 114 : 117);
+      s += `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="var(--muted)" stroke-width="${h % 6 ? 1 : 1.5}"/>`;
+    }
+    for (const h of [0, 6, 12, 18]) {
+      const [x, y] = polar(h / 24, 125);
+      s += `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="var(--muted)" font-family="var(--font-num)">${h}</text>`;
+    }
+    const [nx, ny] = polar(f(now), R);
+    s += `<circle cx="${nx}" cy="${ny}" r="7" fill="var(--surface)" stroke="var(--ink)" stroke-width="2.5"/>`;
+    s += `<text x="130" y="98" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="var(--font-body)">今日の装着</text>`;
+    s += `<text x="130" y="134" text-anchor="middle" font-size="36" font-weight="600" fill="var(--ink)" font-family="var(--font-num)">${hm(st.wear)}</text>`;
+    s += `<text x="130" y="160" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="var(--font-body)">目標 ${S.goal}時間 ／ 最低 ${S.min}時間</text>`;
+    const rc = remain < 0 ? "var(--bad)" : "var(--wear)";
+    s += `<text x="130" y="180" text-anchor="middle" font-size="12" font-weight="700" fill="${rc}" font-family="var(--font-body)">${remain < 0 ? "外しすぎ " + hm(-remain) : "外せる残り " + hm(remain)}</text>`;
+    $("dial").innerHTML = s;
+  }
+
+  /* ---------- render: list + history (on data change, each minute) ---------- */
+  function renderList() {
+    const today = ymd(Date.now()), ul = $("today-list");
+    const items = DAYS[today] || [];
+    if (!items.length) { ul.innerHTML = `<li style="display:block;border:0"><p class="empty">まだありません。外すときに上の理由をタップすると、ここに残ります。</p></li>`; return; }
+    ul.innerHTML = "";
+    for (const e of items) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="t">${clock(e.s)}–${ymd(e.e) === today ? clock(e.e) : "翌" + clock(e.e)}</span><span class="why"></span><span class="d">${dur(e.e - e.s)}</span>`;
+      li.querySelector(".why").textContent = e.why;
+      const b = document.createElement("button");
+      b.className = "del" + (pendingDel === e.id ? " armed" : "");
+      b.textContent = pendingDel === e.id ? "削除する" : "削除";
+      b.setAttribute("aria-label", `${clock(e.s)}の記録を削除`);
+      b.onclick = () => {
+        if (pendingDel === e.id) { pendingDel = null; delEntry(today, e.id); return; }
+        pendingDel = e.id; clearTimeout(pendingTimer);
+        pendingTimer = setTimeout(() => { pendingDel = null; renderList(); }, 4000);
+        renderList();
+      };
+      li.appendChild(b);
+      ul.appendChild(li);
+    }
+  }
+
+  function renderHistory() {
+    const now = Date.now(), today = ymd(now);
+    const days = []; for (let i = 13; i >= 0; i--) days.push(addDays(today, -i));
+    const W = 360, Ht = 190, L = 26, Rm = 44, T = 10, B = 26;
+    const pw = W - L - Rm, ph = Ht - T - B, bw = pw / 14;
+    const y = (h) => T + ph * (1 - h / 24);
+    let s = "";
+    for (const h of [0, 6, 12, 18, 24]) {
+      s += `<line x1="${L}" x2="${W - Rm}" y1="${y(h)}" y2="${y(h)}" stroke="var(--line)" stroke-width="1"/>`;
+      s += `<text x="${L - 6}" y="${y(h)}" text-anchor="end" dominant-baseline="central" font-size="9" fill="var(--muted)" font-family="var(--font-num)">${h}</text>`;
+    }
+    days.forEach((d, i) => {
+      const st = dayStats(d, now), x = L + i * bw + bw * 0.18, w = bw * 0.64;
+      const dd = new Date(dayStart(d));
+      const lbl = d === today ? "今日" : String(dd.getDate());
+      s += `<text x="${L + i * bw + bw / 2}" y="${Ht - 10}" text-anchor="middle" font-size="9" fill="${d === today ? "var(--ink)" : "var(--muted)"}" font-family="var(--font-num)">${lbl}</text>`;
+      if (!st) return;
+      const h = st.wear / H;
+      const col = d === today ? "var(--wear)" : h >= S.goal ? "var(--wear)" : h >= S.min ? "var(--mid)" : "var(--bad)";
+      const op = d === today ? 0.45 : st.partial ? 0.6 : 1;
+      s += `<rect x="${x}" y="${y(h)}" width="${w}" height="${Math.max(0, y(0) - y(h))}" rx="2" fill="${col}" opacity="${op}"><title>${dd.getMonth() + 1}/${dd.getDate()} 装着 ${hrs(st.wear)}時間${st.partial ? "（記録開始日）" : ""}${d === today ? "（途中）" : ""}</title></rect>`;
+    });
+    s += `<line x1="${L}" x2="${W - Rm}" y1="${y(S.goal)}" y2="${y(S.goal)}" stroke="var(--wear)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+    s += `<text x="${W - Rm + 4}" y="${y(S.goal)}" dominant-baseline="central" font-size="9" fill="var(--wear)" font-family="var(--font-body)">目標${S.goal}h</text>`;
+    s += `<line x1="${L}" x2="${W - Rm}" y1="${y(S.min)}" y2="${y(S.min)}" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="2 3"/>`;
+    s += `<text x="${W - Rm + 4}" y="${y(S.min)}" dominant-baseline="central" font-size="9" fill="var(--muted)" font-family="var(--font-body)">最低${S.min}h</text>`;
+    $("chart").innerHTML = s;
+
+    const full = [];
+    for (let i = 1; i <= 7; i++) { const st = dayStats(addDays(today, -i), now); if (st && st.done && !st.partial) full.push(st.wear / H); }
+    const sm = $("summary");
+    if (!full.length) {
+      sm.innerHTML = `<div style="grid-column:1/-1"><span>まる1日分の記録がたまると、ここに7日間の平均と達成日数が出ます。</span></div>`;
+    } else {
+      const avg = full.reduce((a, b) => a + b, 0) / full.length;
+      const hit = full.filter((h) => h >= S.goal).length, low = full.filter((h) => h < S.min).length;
+      sm.innerHTML = `
+        <div><span>7日平均</span><b>${avg.toFixed(1)}h</b></div>
+        <div><span>目標達成</span><b>${hit}/${full.length}日</b></div>
+        <div><span>${S.min}h未満</span><b style="color:${low ? "var(--bad)" : "inherit"}">${low}日</b></div>`;
+    }
+  }
+
+  function renderAll() {
+    renderLive(); renderList(); renderHistory();
+    if (document.activeElement !== $("set-goal")) $("set-goal").value = S.goal;
+    if (document.activeElement !== $("set-min")) $("set-min").value = S.min;
+  }
+
+  /* ---------- events ---------- */
+  document.querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => takeOff(b.dataset.why)));
+  $("btn-on").addEventListener("click", () => putOn(Date.now()));
+  $("btn-late").addEventListener("click", () => {
+    const v = $("late-time").value, err = $("late-err");
+    err.hidden = true;
+    if (!v || !S.offSince) { err.hidden = false; err.textContent = "時刻を入れてください"; return; }
+    const [hh, mm] = v.split(":").map(Number);
+    const n = new Date(); let t = new Date(n.getFullYear(), n.getMonth(), n.getDate(), hh, mm).getTime();
+    if (t > Date.now()) t -= 864e5;
+    if (t < S.offSince) { err.hidden = false; err.textContent = `外した時刻（${clock(S.offSince)}）より後の時刻にしてください`; return; }
+    $("late-time").value = "";
+    putOn(t);
+  });
+  $("add-form").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const err = $("add-err"); err.hidden = true;
+    const d = $("add-date").value, a = $("add-from").value, b = $("add-to").value;
+    if (!d || !a || !b) { err.hidden = false; err.textContent = "日付と2つの時刻を入れてください"; return; }
+    const base = dayStart(d), toMs = (v) => { const [h, m] = v.split(":").map(Number); return (h * 60 + m) * 60e3; };
+    const s = base + toMs(a); let e = base + toMs(b); if (e <= s) e += 864e5;
+    if (e > Date.now()) { err.hidden = false; err.textContent = "まだ来ていない時刻は追加できません"; return; }
+    if (S.startedAt && s < S.startedAt) { S = { ...S, startedAt: dayStart(d) }; persistState(); }
+    addEntry({ id: rid(), s, e, why: $("add-why").value });
+    $("add-from").value = ""; $("add-to").value = "";
+    renderAll();
+  });
+  function bindSetting(id, key, lo, hi) {
+    $(id).addEventListener("change", () => {
+      const v = Math.round(parseFloat($(id).value) * 2) / 2;
+      if (!isFinite(v)) { $(id).value = S[key]; return; }
+      S = { ...S, [key]: Math.min(hi, Math.max(lo, v)) };
+      persistState(); renderAll();
+    });
+  }
+  bindSetting("set-goal", "goal", 12, 23.5);
+  bindSetting("set-min", "min", 1, 23.5);
+  $("add-date").value = ymd(Date.now());
+
+  $("btn-export").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify({ app: "aligner-time", v: 1, exportedAt: Date.now(), S, DAYS }, null, 1)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `mouthpiece-${ymd(Date.now())}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    showBackup("書き出しました。ファイルを「ファイル」アプリなどに保存してください。");
+  });
+  $("import-file").addEventListener("change", async () => {
+    const f = $("import-file").files[0]; $("import-file").value = "";
+    if (!f) return;
+    try {
+      const j = JSON.parse(await f.text());
+      if (j.app !== "aligner-time" || !j.S || typeof j.DAYS !== "object") throw new Error("format");
+      S = { ...DEFAULTS, ...j.S }; DAYS = j.DAYS; saveLocal(); renderAll();
+      showBackup(`読み込みました（${Object.keys(DAYS).length}日分）。`);
+    } catch (e) { showBackup("このファイルは読み込めませんでした。書き出したJSONファイルを選んでください。"); }
+  });
+  function showBackup(t) { const m = $("backup-msg"); m.hidden = false; m.textContent = t; }
+
+  /* ---------- start ---------- */
+  let lastMinute = -1;
+  setInterval(() => {
+    const m = Math.floor(Date.now() / 60000);
+    if (m !== lastMinute) { lastMinute = m; renderList(); renderHistory(); }
+    renderLive();
+  }, 1000);
+  renderAll();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) renderAll(); });
+
+  function start() {
+    mode = "local"; loadLocal(); setNote("この端末に保存"); renderAll();
+    try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+    if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+    window.addEventListener("storage", (e) => { if (e.key === KEY) { loadLocal(); renderAll(); } });
+  }
+  start();
+})();
+</script>
+</body>
+</html>
