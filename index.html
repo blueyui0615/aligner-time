@@ -7,43 +7,43 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="マウスピース">
-<meta name="theme-color" content="#EDF3F5" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0C151A" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F1EE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#221D1C" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-180.png">
 <title>マウスピース時間</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700&family=Quicksand:wght@500;600;700&display=swap">
 <style>
-/* Layout: one narrow phone column — status first, then the 24h dial, today's log, 14-day history, settings */
+/* Layout: one narrow phone column, soft rounded cards — status first, then the 24h dial, today's log, 14-day history, settings */
 :root {
-  --bg: #EDF3F5;
-  --surface: #FFFFFF;
-  --ink: #13222B;
-  --muted: #5A6D77;
-  --line: #D3E0E5;
-  --track: #E3ECEF;
-  --wear: #16917F;
-  --wear-soft: #D3EEE9;
-  --mid: #4A7FBF;
-  --off: #D9801A;
-  --off-soft: #FCEBD3;
-  --bad: #CC4236;
-  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
-  --font-num: "Space Grotesk", ui-monospace, "SF Mono", Menlo, monospace;
+  --bg: #F6F1EE;
+  --surface: #FFFDFB;
+  --ink: #4A3F3C;
+  --muted: #998A85;
+  --line: #EDE2DD;
+  --track: #F2EAE6;
+  --wear: #739A7C;
+  --wear-soft: #E5EEE3;
+  --mid: #93A3CC;
+  --off: #D48A8A;
+  --off-soft: #F8E7E4;
+  --bad: #C9706A;
+  --font-body: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", system-ui, sans-serif;
+  --font-num: "Quicksand", "M PLUS Rounded 1c", ui-rounded, system-ui, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0C151A; --surface: #14212A; --ink: #E5EEF1; --muted: #93A7B0; --line: #253842; --track: #1D2E37;
-    --wear: #3CC2AF; --wear-soft: #163A36; --mid: #6E9FDB; --off: #F0A445; --off-soft: #3A2A15; --bad: #F06B5D;
+    --bg: #221D1C; --surface: #2C2624; --ink: #F2E9E5; --muted: #B3A39E; --line: #3D3431; --track: #372F2C;
+    --wear: #9EC2A5; --wear-soft: #2E3A30; --mid: #A9B7D6; --off: #E8A9A9; --off-soft: #43302F; --bad: #EE9690;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0C151A; --surface: #14212A; --ink: #E5EEF1; --muted: #93A7B0; --line: #253842; --track: #1D2E37;
-  --wear: #3CC2AF; --wear-soft: #163A36; --mid: #6E9FDB; --off: #F0A445; --off-soft: #3A2A15; --bad: #F06B5D;
+  --bg: #221D1C; --surface: #2C2624; --ink: #F2E9E5; --muted: #B3A39E; --line: #3D3431; --track: #372F2C;
+  --wear: #9EC2A5; --wear-soft: #2E3A30; --mid: #A9B7D6; --off: #E8A9A9; --off-soft: #43302F; --bad: #EE9690;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -67,7 +67,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
 h1 { margin: 0; font-size: 22px; font-weight: 700; text-wrap: balance; }
 h2 { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
 .mode { font-size: 12px; color: var(--muted); text-align: right; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 16px; min-width: 0; }
 
 /* status */
 .st-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -79,25 +79,25 @@ h2 { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
 .chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 button { font: inherit; color: inherit; cursor: pointer; }
 button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--mid); outline-offset: 2px; }
-.chip { border: 1px solid var(--line); background: var(--bg); border-radius: 12px; padding: 12px 10px; font-weight: 500; text-align: left; display: flex; flex-direction: column; gap: 2px; }
+.chip { border: 1px solid var(--line); background: var(--bg); border-radius: 18px; padding: 12px 10px; font-weight: 500; text-align: left; display: flex; flex-direction: column; gap: 2px; }
 .chip small { font-size: 11px; color: var(--muted); font-weight: 400; }
 .chip:hover { border-color: var(--off); }
 .timer { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 52px; font-weight: 600; color: var(--off); line-height: 1.1; margin: 12px 0 6px; letter-spacing: -.01em; }
 .warn { margin: 0 0 10px; font-size: 13px; font-weight: 500; color: var(--bad); }
-.primary { width: 100%; border: 0; border-radius: 12px; padding: 14px; font-size: 17px; font-weight: 700; background: var(--wear); color: var(--surface); }
+.primary { width: 100%; border: 0; border-radius: 999px; padding: 14px; font-size: 17px; font-weight: 700; background: var(--wear); color: var(--surface); }
 .primary:hover { filter: brightness(1.05); }
 .late { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .late label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 input, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; min-width: 0; }
-.ghost { border: 1px solid var(--line); background: transparent; border-radius: 10px; padding: 8px 12px; font-size: 14px; }
+.ghost { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 8px 12px; font-size: 14px; }
 .ghost:hover { border-color: var(--ink); }
 .err { color: var(--bad); font-size: 13px; margin: 6px 0 0; }
 
 /* dial */
 .dialcard { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 #dial { width: 100%; max-width: 280px; height: auto; display: block; }
-.stats { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border-radius: 12px; overflow: hidden; }
+.stats { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border-radius: 18px; overflow: hidden; }
 .stat { background: var(--surface); padding: 10px 12px; }
 .stat dt { font-size: 12px; color: var(--muted); }
 .stat dd { margin: 0; font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 600; }
@@ -113,6 +113,17 @@ input, select { font: inherit; color: var(--ink); background: var(--bg); border:
 .del { border: 0; background: transparent; color: var(--muted); font-size: 12px; padding: 4px 6px; border-radius: 8px; }
 .del:hover { color: var(--bad); }
 .del.armed { color: var(--surface); background: var(--bad); }
+#today-list li.editing { display: block; border-bottom: 0; }
+.edit { border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 12px; padding: 4px 12px; border-radius: 999px; }
+.edit:hover { color: var(--ink); border-color: var(--ink); }
+.edit-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; background: var(--off-soft); padding: 14px; border-radius: 18px; }
+.edit-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.edit-form .full { grid-column: 1 / -1; }
+.edit-form input, .edit-form select { background: var(--surface); }
+.edit-actions { gap: 8px; }
+.edit-actions .del { margin-left: auto; }
+.save { border: 0; background: var(--wear); color: var(--surface); border-radius: 999px; padding: 8px 20px; font-weight: 700; }
+.list-hint { margin: -4px 0 8px; font-size: 12px; color: var(--muted); }
 .empty { color: var(--muted); font-size: 13px; padding: 4px 0; margin: 0; }
 details { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
 summary { cursor: pointer; font-size: 13px; color: var(--muted); }
@@ -180,6 +191,7 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
 
   <section class="card">
     <h2>今日外した記録</h2>
+    <p class="list-hint" id="list-hint" hidden>時刻がずれていたら「直す」から変えられます</p>
     <ul id="today-list"></ul>
     <details id="add-details">
       <summary>記録を手で追加する</summary>
@@ -395,28 +407,71 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
   }
 
   /* ---------- render: list + history (on data change, each minute) ---------- */
+  let editingId = null;
+  const REASONS = ["食事", "間食・飲み物", "歯みがき", "その他"];
   function renderList() {
     const today = ymd(Date.now()), ul = $("today-list");
     const items = DAYS[today] || [];
+    $("list-hint").hidden = !items.length;
     if (!items.length) { ul.innerHTML = `<li style="display:block;border:0"><p class="empty">まだありません。外すときに上の理由をタップすると、ここに残ります。</p></li>`; return; }
     ul.innerHTML = "";
-    for (const e of items) {
+    for (const ent of items) {
       const li = document.createElement("li");
-      li.innerHTML = `<span class="t">${clock(e.s)}–${ymd(e.e) === today ? clock(e.e) : "翌" + clock(e.e)}</span><span class="why"></span><span class="d">${dur(e.e - e.s)}</span>`;
-      li.querySelector(".why").textContent = e.why;
+      if (editingId === ent.id) {
+        li.className = "editing"; li.appendChild(editForm(today, ent)); ul.appendChild(li);
+        continue;
+      }
+      li.innerHTML = `<span class="t">${clock(ent.s)}–${ymd(ent.e) === today ? clock(ent.e) : "翌" + clock(ent.e)}</span><span class="why"></span><span class="d">${dur(ent.e - ent.s)}</span>`;
+      li.querySelector(".why").textContent = ent.why;
       const b = document.createElement("button");
-      b.className = "del" + (pendingDel === e.id ? " armed" : "");
-      b.textContent = pendingDel === e.id ? "削除する" : "削除";
-      b.setAttribute("aria-label", `${clock(e.s)}の記録を削除`);
-      b.onclick = () => {
-        if (pendingDel === e.id) { pendingDel = null; delEntry(today, e.id); return; }
-        pendingDel = e.id; clearTimeout(pendingTimer);
-        pendingTimer = setTimeout(() => { pendingDel = null; renderList(); }, 4000);
-        renderList();
-      };
+      b.className = "edit"; b.textContent = "直す";
+      b.setAttribute("aria-label", `${clock(ent.s)}の記録の時刻を直す`);
+      b.onclick = () => { editingId = ent.id; renderList(); const i = ul.querySelector(".editing input"); if (i) i.focus(); };
       li.appendChild(b);
       ul.appendChild(li);
     }
+  }
+  function editForm(date, ent) {
+    const f = document.createElement("form");
+    f.className = "edit-form";
+    f.innerHTML = `
+      <label>外した時刻<input type="time" name="from" value="${clock(ent.s)}" required></label>
+      <label>つけた時刻<input type="time" name="to" value="${clock(ent.e)}" required></label>
+      <label class="full">理由<select name="why">${REASONS.map((r) => `<option${r === ent.why ? " selected" : ""}>${r}</option>`).join("")}</select></label>
+      <p class="err full" hidden></p>
+      <div class="full row edit-actions">
+        <button type="submit" class="save">保存</button>
+        <button type="button" class="ghost cancel">やめる</button>
+        <button type="button" class="del">削除</button>
+      </div>`;
+    const err = f.querySelector(".err");
+    f.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      const base = dayStart(date), toMs = (v) => { const [h, m] = v.split(":").map(Number); return (h * 60 + m) * 60e3; };
+      const a = f.elements.from.value, b = f.elements.to.value;
+      if (!a || !b) { err.hidden = false; err.textContent = "2つの時刻を入れてください"; return; }
+      const s = base + toMs(a); let e = base + toMs(b); if (e <= s) e += 864e5;
+      if (e > Date.now()) { err.hidden = false; err.textContent = "つけた時刻がまだ来ていません。つけた時刻が外した時刻より前だと翌日扱いになります"; return; }
+      saveEdit(date, ent.id, { s, e, why: f.elements.why.value });
+    });
+    f.querySelector(".cancel").onclick = () => { editingId = null; renderList(); };
+    const del = f.querySelector(".del");
+    del.onclick = () => {
+      if (del.classList.contains("armed")) { editingId = null; delEntry(date, ent.id); return; }
+      del.classList.add("armed"); del.textContent = "もう一度押すと削除";
+      setTimeout(() => { del.classList.remove("armed"); del.textContent = "削除"; }, 4000);
+    };
+    return f;
+  }
+  function saveEdit(date, id, patch) {
+    const old = (DAYS[date] || []).find((x) => x.id === id);
+    if (!old) { editingId = null; renderAll(); return; }
+    const next = { ...old, ...patch }, nd = ymd(next.s);
+    DAYS[date] = DAYS[date].filter((x) => x.id !== id);
+    if (!DAYS[date].length) delete DAYS[date];
+    DAYS[nd] = [...(DAYS[nd] || []), next].sort((x, y) => x.s - y.s);
+    persistDay(date); if (nd !== date) persistDay(nd);
+    editingId = null; renderAll();
   }
 
   function renderHistory() {
@@ -463,7 +518,7 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
   }
 
   function renderAll() {
-    renderLive(); renderList(); renderHistory();
+    renderLive(); if (!editingId) renderList(); renderHistory();
     if (document.activeElement !== $("set-goal")) $("set-goal").value = S.goal;
     if (document.activeElement !== $("set-min")) $("set-min").value = S.min;
   }
@@ -531,7 +586,7 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
   let lastMinute = -1;
   setInterval(() => {
     const m = Math.floor(Date.now() / 60000);
-    if (m !== lastMinute) { lastMinute = m; renderList(); renderHistory(); }
+    if (m !== lastMinute) { lastMinute = m; if (!editingId) renderList(); renderHistory(); }
     renderLive();
   }, 1000);
   renderAll();
