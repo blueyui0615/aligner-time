@@ -319,7 +319,8 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
   /* ---------- storage ---------- */
   const chains = {};
   const chain = (k, fn) => { const p = (chains[k] || Promise.resolve()).then(fn, fn); chains[k] = p.catch(() => {}); return p; };
-  function saveLocal() { try { localStorage.setItem(KEY, JSON.stringify({ S, DAYS })); } catch (e) {} }
+  function saveLocal() { if (mode === "loading") return; // never overwrite saved records before they are loaded
+    try { localStorage.setItem(KEY, JSON.stringify({ S, DAYS })); } catch (e) {} }
   function loadLocal() {
     try { const j = JSON.parse(localStorage.getItem(KEY) || "null"); if (j) { S = { ...DEFAULTS, ...j.S }; DAYS = j.DAYS || {}; } } catch (e) {}
     if (!S.startedAt) { S.startedAt = dayStart(ymd(Date.now())); saveLocal(); }
@@ -687,6 +688,7 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
 
   let townSig = "", popFrom = null, townNews = "";
   function renderTown() {
+    if (mode === "loading") return;
     const now = Date.now(), T = townModel(now), n = T.items.length;
     // news: tiles finished since you last looked
     if (typeof S.townSeen !== "number" || S.townSeen > n) {
@@ -842,8 +844,7 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
     schedule();
   }
   document.addEventListener("visibilitychange", () => { if (document.hidden) { clearTimeout(timer); timer = null; } else renderAll(); });
-  window.addEventListener("pageshow", () => renderAll());
-  renderAll();
+  window.addEventListener("pageshow", () => { if (mode !== "loading") renderAll(); });
 
   function start() {
     mode = "local"; loadLocal(); setNote("この端末に保存"); renderAll();
