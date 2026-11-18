@@ -164,6 +164,11 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
 .tstats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 0; text-align: center; }
 .tstats dt { font-size: 11px; color: var(--muted); }
 .tstats dd { margin: 0; font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 600; }
+.toggle { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+.toggle input { width: 20px; height: 20px; accent-color: var(--wear); }
+.steps { margin: 10px 0; padding-left: 1.3em; font-size: 13px; }
+.steps a { color: var(--wear); }
+.topic { font-family: ui-monospace, Menlo, monospace; font-size: 13px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; user-select: all; -webkit-user-select: all; overflow-wrap: anywhere; flex: 1; min-width: 0; }
 .rules { margin: 6px 0 0; padding-left: 1.2em; font-size: 12px; color: var(--muted); }
 @media (max-width: 380px) { .timer { font-size: 44px; } .summary b { font-size: 16px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -220,17 +225,17 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
     </div>
     <dl class="tstats">
       <div><dt>人口</dt><dd id="t-pop">0</dd></div>
-      <div><dt>建物</dt><dd id="t-bld">0</dd></div>
+      <div><dt>できたもの</dt><dd id="t-bld">0</dd></div>
       <div><dt>連続達成</dt><dd id="t-streak">0日</dd></div>
     </dl>
     <details>
       <summary>街のルール</summary>
       <ul class="rules">
-        <li>目標時間を達成した日は、夜0時に建物が1つ建ちます</li>
-        <li>はじめはおうち、3日連続でカフェ、7日連続でマンションに</li>
-        <li>達成7回ごとに時計台が建ちます</li>
-        <li>最低ラインは超えたけど目標に届かなかった日は、木が1本</li>
-        <li>最低ラインに届かなかった日は空き地のまま（減ったりはしません）</li>
+        <li>つけている時間がたまるたびに、街に1つずつ何かができます</li>
+        <li>花畑・チューリップ・街灯は10時間、ベンチ・木は11時間、どうぶつは12時間、おうちは14時間、噴水は15時間、カフェ・パン屋は16時間、マンション・時計台は18時間</li>
+        <li>外しているあいだは工事がお休み。減ったりはしません</li>
+        <li>1日の目標時間を達成すると、ごほうびにどうぶつが遊びに来ます</li>
+        <li>街が育つと、カフェやマンションも建つようになります</li>
       </ul>
     </details>
   </section>
@@ -279,6 +284,22 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
       <label>最低ライン（歯医者の指示）<input type="number" id="set-min" min="1" max="23.5" step="0.5" class="num"></label>
     </div>
     <p class="note">寝ている時間も装着時間に入ります。「外せる残り」は、目標から逆算した今日あと外していられる時間です。</p>
+  </section>
+  <section class="card">
+    <h2>外しっぱなし通知</h2>
+    <p class="note" style="margin:0 0 10px">1時間続けて外していると、iPhoneに通知が届きます。画面を閉じるとこのアプリは動けないので、無料の通知アプリ「ntfy」から届けます。</p>
+    <label class="toggle"><input type="checkbox" id="ntf-on"> 通知を使う</label>
+    <div id="ntf-setup" hidden>
+      <ol class="steps">
+        <li>App Storeで「ntfy」をインストール（<a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">App Storeを開く</a>）</li>
+        <li>ntfyを開いて「＋」を押し、下の名前をTopicに貼り付けて「Subscribe」（サーバーはそのまま）</li>
+        <li>通知を許可して、下の「テスト通知を送る」で届くか確認</li>
+      </ol>
+      <div class="row"><code class="topic" id="ntf-topic"></code><button class="ghost" type="button" id="ntf-copy">コピー</button></div>
+      <div class="row" style="margin-top:10px"><button class="ghost" type="button" id="ntf-test">テスト通知を送る</button></div>
+      <p class="note" id="ntf-msg" hidden></p>
+      <p class="note">この名前を知っている人には通知が見えるので、人には教えないでください。送るのは「外して1時間たちました」という文だけです。電波がないときは届きません。</p>
+    </div>
   </section>
   <section class="card">
     <h2>バックアップ</h2>
@@ -370,14 +391,14 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
   function takeOff(why) {
     if (S.offSince || mode === "loading") return;
     S = { ...S, offSince: Date.now(), offWhy: why };
-    persistState(); renderAll();
+    persistState(); renderAll(); bookAlert();
   }
   function putOn(at) {
     if (!S.offSince) return;
     const e = { id: rid(), s: S.offSince, e: Math.max(S.offSince, Math.min(at, Date.now())), why: S.offWhy || "その他" };
     addEntry(e);
     S = { ...S, offSince: null, offWhy: null };
-    persistState(); renderAll();
+    persistState(); renderAll(); cancelAlert();
   }
   function addEntry(e) {
     const date = ymd(e.s);
@@ -570,47 +591,78 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
     }
   }
 
-  /* ---------- town: every finished day becomes one tile ---------- */
-  const KINDS = {
-    start: { name: "はじまりの看板", pop: 0, bld: 0 },
-    house: { name: "おうち", pop: 4, bld: 1 },
-    cafe: { name: "カフェ", pop: 6, bld: 1 },
-    tower: { name: "マンション", pop: 20, bld: 1 },
-    clock: { name: "時計台", pop: 10, bld: 1 },
-    tree: { name: "木", pop: 0, bld: 0 },
-    grass: { name: "空き地", pop: 0, bld: 0 },
+  /* ---------- town: worn hours build things, 10–18h each ---------- */
+  const THINGS = {
+    start: { name: "はじまりの看板", cost: 0, pop: 0, site: "build" },
+    flower: { name: "花畑", cost: 10, pop: 0, site: "plant" },
+    tulip: { name: "チューリップ", cost: 10, pop: 0, site: "plant" },
+    lamp: { name: "街灯", cost: 10, pop: 0, site: "small" },
+    bench: { name: "ベンチ", cost: 11, pop: 0, site: "small" },
+    tree: { name: "木", cost: 11, pop: 0, site: "plant" },
+    critter: { name: "どうぶつ", cost: 12, pop: 1, site: "box" },
+    house: { name: "おうち", cost: 14, pop: 4, site: "build" },
+    fountain: { name: "噴水", cost: 15, pop: 0, site: "build" },
+    cafe: { name: "カフェ", cost: 16, pop: 2, site: "build" },
+    bakery: { name: "パン屋", cost: 16, pop: 2, site: "build" },
+    tower: { name: "マンション", cost: 18, pop: 20, site: "build" },
+    clock: { name: "時計台", cost: 18, pop: 0, site: "build" },
   };
-  const RANKS = [[600, "大都市"], [300, "都市"], [150, "街"], [60, "町"], [20, "村"], [1, "小さな集落"], [0, "まっさらな土地"]];
+  const CRITTERS = [["cat", "ねこ"], ["bunny", "うさぎ"], ["bear", "くま"], ["chick", "ひよこ"], ["pup", "いぬ"]];
+  const RANKS = [[300, "大都市"], [150, "都市"], [70, "街"], [30, "町"], [10, "村"], [1, "小さな集落"], [0, "まっさらな土地"]];
   const PAL = ["#F2B8B5", "#F6D69B", "#B7D9C1", "#C9C1E8", "#F5C7A8", "#AFCDE6", "#E9B9D3"];
-  const seedOf = (s) => { let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
-  function kindFor(hit, ok, streak, goalDays) {
-    if (hit) return goalDays % 7 === 0 ? "clock" : streak >= 7 ? "tower" : streak >= 3 ? "cafe" : "house";
-    return ok ? "tree" : "grass";
+  const seedOf = (s) => { let h = 7; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
+  function rng(k) {
+    let t = (k * 2654435761 + 0x9e3779b9) >>> 0;
+    return () => { t = (t + 0x6d2b79f5) >>> 0; let r = Math.imul(t ^ (t >>> 15), 1 | t); r ^= r + Math.imul(r ^ (r >>> 7), 61 | r); return ((r ^ (r >>> 14)) >>> 0) / 4294967296; };
   }
+  // The k-th thing is always the same, so edits to the log never reshuffle the town.
+  const seqCache = [{ kind: "start", k: 0 }];
+  function thingAt(k) {
+    while (seqCache.length <= k) {
+      const i = seqCache.length, r = rng(i), prev = seqCache[i - 1].kind;
+      let kind;
+      if (i % 12 === 0) kind = "clock";
+      else {
+        const w = { flower: 3, tulip: 2, tree: 3, lamp: 1.5, bench: 1.5, critter: 3, house: 4 };
+        if (i >= 5) Object.assign(w, { cafe: 2, bakery: 2, fountain: 1 });
+        if (i >= 12) w.tower = 2 + i / 15;
+        for (let tries = 0; tries < 3; tries++) {
+          let x = r() * Object.values(w).reduce((a, b) => a + b, 0);
+          for (const [kk, ww] of Object.entries(w)) { x -= ww; if (x <= 0) { kind = kk; break; } }
+          kind = kind || "house";
+          if (kind !== prev) break;
+        }
+      }
+      seqCache.push({ kind, k: i, v: Math.floor(r() * 1000) });
+    }
+    return seqCache[k];
+  }
+  const thingName = (t) => t.kind === "critter" ? CRITTERS[t.v % CRITTERS.length][1] : THINGS[t.kind].name;
+
   function townModel(now) {
     const today = ymd(now), first = ymd(S.startedAt || now);
-    const items = []; let streak = 0, goalDays = 0;
-    for (let d = first; d < today; d = addDays(d, 1)) {
+    let wear = 0, streak = 0;
+    const guests = [];
+    for (let d = first; d <= today; d = addDays(d, 1)) {
       const st = dayStats(d, now);
-      if (!st || !st.done) continue;
-      if (st.partial) { items.push({ d, kind: "start" }); continue; }
-      const h = st.wear / H, hit = h >= S.goal;
-      if (hit) { streak++; goalDays++; } else streak = 0;
-      items.push({ d, kind: kindFor(hit, h >= S.min, streak, goalDays) });
+      if (!st) continue;
+      wear += st.wear;
+      if (d === today || st.partial) continue;
+      if (st.wear >= S.goal * H) { streak++; guests.push({ d, v: seedOf(d) }); } else streak = 0;
     }
+    const items = [thingAt(0)];
+    let acc = 0;
+    while (true) {
+      const t = thingAt(items.length), c = THINGS[t.kind].cost * H;
+      if (acc + c > wear) break;
+      acc += c; items.push(t);
+    }
+    const next = thingAt(items.length), cost = THINGS[next.kind].cost * H;
     const st = dayStats(today, now);
-    let next = null, pct = 0;
-    if (st) {
-      if (st.partial) next = "start";
-      else {
-        const proj = (st.possible - st.off) / H;
-        next = kindFor(proj >= S.goal, proj >= S.min, streak + 1, goalDays + 1);
-      }
-      pct = Math.min(1, st.wear / (Math.min(S.goal * H, st.possible) || 1));
-    }
-    let pop = 0, bld = 0;
-    for (const it of items) { pop += KINDS[it.kind].pop; bld += KINDS[it.kind].bld; }
-    return { items, streak, pop, bld, next, pct, offNow: !!S.offSince };
+    const todayGuest = st && !st.partial && st.possible - st.off >= S.goal * H;
+    let pop = guests.length;
+    for (const it of items) pop += THINGS[it.kind].pop;
+    return { items, guests, streak, pop, next, pct: (wear - acc) / cost, left: cost - (wear - acc), todayGuest, offNow: !!S.offSince };
   }
 
   // isometric drawing helpers (tile = 40×20)
@@ -633,20 +685,45 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
     const ap = [cx, cy - h - rh];
     return poly([[cx - a, cy - h], [cx, cy + a / 2 - h], ap], l) + poly([[cx, cy + a / 2 - h], [cx + a, cy - h], ap], r);
   }
-  const WALL = tone("#FFF7EF"), GLASS = "#CFE3F0", WOOD = "#B9967A";
-  function drawThing(kind, cx, cy, seed, p) {
-    const c = PAL[seed % PAL.length];
-    switch (kind) {
+  const C = (x, y, r, f, extra = "") => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${f}"${extra}/>`;
+  const E = (x, y, rx, ry, f, extra = "") => `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${rx}" ry="${ry}" fill="${f}"${extra}/>`;
+  const WALL = tone("#FFF7EF"), GLASS = "#CFE3F0", WOOD = "#B9967A", INK = "#4A3F3C";
+  const SPOTS = [[-9, 0], [-4, -3], [2, -5], [7, -1], [-3, 3], [3, 2], [9, 1], [-1, -1]];
+
+  // little round animals — all share one chubby body
+  function critter(type, x, y, s = 1) {
+    const col = { cat: "#F3C9A0", bunny: "#FFFDF8", bear: "#D2AF92", chick: "#FBE29A", pup: "#F1E3CF" }[type] || "#FFFDF8";
+    const line = ' stroke="#D9C9C0" stroke-width=".5"';
+    const hx = x, hy = y - 6.5 * s, R = 4.4 * s;
+    let ears = "";
+    if (type === "cat") ears = poly([[hx - R * 0.9, hy - R * 0.3], [hx - R * 0.75, hy - R * 1.35], [hx - R * 0.15, hy - R * 0.85]], col, line) + poly([[hx + R * 0.9, hy - R * 0.3], [hx + R * 0.75, hy - R * 1.35], [hx + R * 0.15, hy - R * 0.85]], col, line);
+    if (type === "bunny") ears = E(hx - R * 0.42, hy - R * 1.35, 1.2 * s, 3.2 * s, col, line) + E(hx + R * 0.42, hy - R * 1.35, 1.2 * s, 3.2 * s, col, line) + E(hx - R * 0.42, hy - R * 1.3, 0.5 * s, 2.2 * s, "#F6C9CF") + E(hx + R * 0.42, hy - R * 1.3, 0.5 * s, 2.2 * s, "#F6C9CF");
+    if (type === "bear") ears = C(hx - R * 0.75, hy - R * 0.75, 1.6 * s, col, line) + C(hx + R * 0.75, hy - R * 0.75, 1.6 * s, col, line);
+    if (type === "chick") ears = `<path d="M${hx} ${hy - R} q-1 -2.2 .8 -2.6 M${hx} ${hy - R} q1.4 -1.6 2.2 -.6" stroke="#E9C46A" stroke-width=".8" fill="none" stroke-linecap="round"/>`;
+    let s2 = E(x, y, 4 * s, 1.4 * s, INK, ' opacity=".12"') + E(x, y - 2.2 * s, 3.6 * s, 2.6 * s, col, line) + ears + C(hx, hy, R, col, line);
+    if (type === "pup") s2 += E(hx - R * 0.95, hy + R * 0.1, 1.3 * s, 2.4 * s, "#C9A68A") + E(hx + R * 0.95, hy + R * 0.1, 1.3 * s, 2.4 * s, "#C9A68A");
+    s2 += C(hx - 1.5 * s, hy + 0.1 * s, 0.55 * s, INK) + C(hx + 1.5 * s, hy + 0.1 * s, 0.55 * s, INK);
+    s2 += C(hx - 2.7 * s, hy + 1.3 * s, 0.9 * s, "#F4A9B0", ' opacity=".6"') + C(hx + 2.7 * s, hy + 1.3 * s, 0.9 * s, "#F4A9B0", ' opacity=".6"');
+    s2 += type === "chick" ? poly([[hx - 0.8 * s, hy + 1 * s], [hx + 0.8 * s, hy + 1 * s], [hx, hy + 2.1 * s]], "#EFA25B") : C(hx, hy + 1.1 * s, 0.45 * s, "#B08A80");
+    return s2;
+  }
+
+  function drawThing(t, cx, cy, p) {
+    const seed = seedOf("t" + t.k), c = PAL[seed % PAL.length];
+    switch (t.kind) {
       case "house": {
         const a = 11.5, h = 11;
         return box(cx, cy, a, h, WALL) + roof(cx, cy, a, h, 10, tone(c)) +
           face(lp, cx, cy, a, 0.38, 0.62, 0, 7, mix(c, "#5A4A45", 0.35)) + face(rp, cx, cy, a, 0.3, 0.62, 4, 8.5, GLASS);
       }
-      case "cafe": {
-        const a = 13, h = 12;
-        return box(cx, cy, a, h, WALL) + face(lp, cx, cy, a, 0, 1, 7.5, 10.5, tone(c)[1]) + face(rp, cx, cy, a, 0, 1, 7.5, 10.5, tone(c)[2]) +
-          face(rp, cx, cy, a, 0.15, 0.85, 1.5, 6.5, GLASS) + face(lp, cx, cy, a, 0.42, 0.62, 0, 6, WOOD) +
-          box(cx - 3, cy - h + 1, 3, 4, tone(c));
+      case "cafe": case "bakery": {
+        const a = 13, h = 12, aw = t.kind === "bakery" ? "#E9C9A0" : c;
+        let s = box(cx, cy, a, h, WALL) + face(lp, cx, cy, a, 0, 1, 7.5, 10.5, tone(aw)[1]) + face(rp, cx, cy, a, 0, 1, 7.5, 10.5, tone(aw)[2]);
+        for (let u = 0.1; u < 1; u += 0.2) s += face(rp, cx, cy, a, u, u + 0.1, 7.5, 10.5, "#FFFDF8", ' opacity=".55"');
+        s += face(rp, cx, cy, a, 0.15, 0.85, 1.5, 6.5, GLASS) + face(lp, cx, cy, a, 0.42, 0.62, 0, 6, WOOD);
+        if (t.kind === "bakery") s += E(cx + 1, cy - h - 4, 4, 2.4, "#E3B07A", ' stroke="#C98F5A" stroke-width=".6"') + `<path d="M${cx - 1.5} ${cy - h - 5.5} v3 M${cx + 1} ${cy - h - 6} v3.4 M${cx + 3.5} ${cy - h - 5.5} v3" stroke="#C98F5A" stroke-width=".6"/>`;
+        else s += box(cx - 3, cy - h + 1, 3, 4, tone(c));
+        return s;
       }
       case "tower": {
         const a = 12, h = 30 + (seed % 3) * 7, w = tone(mix(c, "#FFFFFF", 0.35));
@@ -659,71 +736,121 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
       case "clock": {
         const a = 8, h = 34, cc = rp(cx, cy, a, 0.5, h - 9);
         return box(cx, cy, a, h, WALL) + roof(cx, cy, a, h, 15, tone(c)) +
-          `<circle cx="${cc[0].toFixed(1)}" cy="${cc[1].toFixed(1)}" r="3.2" fill="#FFFDF8" stroke="#A8968F" stroke-width=".8"/>` +
+          C(cc[0], cc[1], 3.2, "#FFFDF8", ' stroke="#A8968F" stroke-width=".8"') +
           `<path d="M${pt(cc)} l0 -2.2 M${pt(cc)} l1.6 .6" stroke="#7D6C66" stroke-width=".7" stroke-linecap="round"/>` +
           face(lp, cx, cy, a, 0.3, 0.7, 0, 7, WOOD);
       }
       case "tree": {
         const blossom = seed % 3 === 0, f = blossom ? "#F4C6CB" : "#A6CFA4", hl = blossom ? "#F9DDE0" : "#C4E2BF";
-        const one = (x, y, k) => box(x, y, 1.6 * k, 6 * k, tone(WOOD)) +
-          `<circle cx="${x}" cy="${y - 11 * k}" r="${7 * k}" fill="${f}"/><circle cx="${x + 2.4 * k}" cy="${y - 13 * k}" r="${2.6 * k}" fill="${hl}"/>`;
+        const one = (x, y, k) => box(x, y, 1.6 * k, 6 * k, tone(WOOD)) + C(x, y - 11 * k, 7 * k, f) + C(x + 2.4 * k, y - 13 * k, 2.6 * k, hl);
         return seed % 2 ? one(cx, cy, 1) : one(cx - 5, cy - 1, 0.75) + one(cx + 5, cy + 1.5, 0.85);
       }
-      case "grass":
-        return [[-7, 1], [4, -2], [6, 4]].map(([dx, dy]) => `<path d="M${cx + dx} ${cy + dy} l-1.2 -3 M${cx + dx} ${cy + dy} l0 -3.6 M${cx + dx} ${cy + dy} l1.2 -3" stroke="#93B88C" stroke-width=".9" stroke-linecap="round" fill="none"/>`).join("");
+      case "flower": {
+        const cols = ["#F6B9C3", "#FBE29A", "#D3C6F0", "#FFFDF8", "#F7C9A8"];
+        let s = "";
+        SPOTS.forEach(([dx, dy], i) => {
+          const x = cx + dx, y = cy + dy, col = cols[(i + seed) % cols.length];
+          s += C(x - 1.5, y + 0.8, 1.1, "#9CC79A");
+          for (let j = 0; j < 5; j++) { const a = (j / 5) * 2 * Math.PI; s += C(x + Math.cos(a) * 1.3, y - 2 + Math.sin(a) * 0.9, 1, col); }
+          s += C(x, y - 2, 0.7, "#EFC15F");
+        });
+        return s;
+      }
+      case "tulip": {
+        const cols = ["#F29CA8", "#F7D07A", "#C9B5EE", "#F5B48E"];
+        let s = "";
+        SPOTS.slice(0, 7).forEach(([dx, dy], i) => {
+          const x = cx + dx, y = cy + dy, col = cols[(i + seed) % cols.length];
+          s += `<path d="M${x} ${y} v-4.5" stroke="#8DBB88" stroke-width=".8"/>` + E(x + 1.2, y - 1.5, 1, 0.5, "#9CC79A");
+          s += `<path d="M${x - 1.5} ${y - 6.5} v1.4 a1.5 1.5 0 0 0 3 0 v-1.4 l-.75 .8 l-.75 -.8 l-.75 .8 z" fill="${col}"/>`;
+        });
+        return s;
+      }
+      case "lamp":
+        return E(cx, cy, 3, 1.3, INK, ' opacity=".12"') + `<path d="M${cx} ${cy} V${cy - 17} q0 -2 2.5 -2" stroke="#8B7B76" stroke-width="1.2" fill="none"/>` +
+          C(cx + 3, cy - 18, 4.5, "#FFE7A3", ' opacity=".35"') + C(cx + 3, cy - 18, 1.9, "#FFE7A3", ' stroke="#D9B865" stroke-width=".5"') +
+          C(cx - 6, cy + 2, 1.2, "#F6B9C3") + C(cx - 8, cy + 0.5, 1.1, "#FBE29A");
+      case "bench": {
+        const P = (u, v) => [cx - 7 + u * 14, cy + 2 - u * 7 - v];
+        let s = `<path d="M${pt(P(0.1, 0))} v-3 M${pt(P(0.9, 0))} v-3 M${pt(P(0.1, 0).map((n, i) => n + (i ? -2 : -2.5)))} v-7 M${pt(P(0.9, 0).map((n, i) => n + (i ? -2 : -2.5)))} v-7" stroke="#8B7B76" stroke-width=".8"/>`;
+        s += poly([P(0, 3), P(1, 3), [P(1, 3)[0] - 2.5, P(1, 3)[1] - 2], [P(0, 3)[0] - 2.5, P(0, 3)[1] - 2]], WOOD);
+        s += poly([[P(0, 5)[0] - 2.5, P(0, 5)[1] - 2], [P(1, 5)[0] - 2.5, P(1, 5)[1] - 2], [P(1, 8)[0] - 2.5, P(1, 8)[1] - 2], [P(0, 8)[0] - 2.5, P(0, 8)[1] - 2]], tone(WOOD)[1]);
+        return s + critter(CRITTERS[seed % CRITTERS.length][0], cx + 8, cy + 4, 0.65);
+      }
+      case "fountain": {
+        let s = E(cx, cy, 13, 6.5, "#E9E1D8", ' stroke="#D6CBC0" stroke-width=".6"') + E(cx, cy - 1, 10.5, 5, "#BFE0EE");
+        s += `<rect x="${cx - 1.2}" y="${cy - 10}" width="2.4" height="9" fill="#E9E1D8"/>` + E(cx, cy - 10, 4, 1.8, "#E9E1D8");
+        s += `<path d="M${cx} ${cy - 11} q-4 -6 -7 2 M${cx} ${cy - 11} q4 -6 7 2 M${cx} ${cy - 11} v-5" stroke="#CDEAF5" stroke-width="1.2" fill="none" stroke-linecap="round"/>`;
+        return s + C(cx - 5, cy - 3, 0.7, "#FFFFFF") + C(cx + 6, cy - 2, 0.6, "#FFFFFF");
+      }
+      case "critter": {
+        const [type] = CRITTERS[t.v % CRITTERS.length];
+        return C(cx + 7, cy - 1, 1.3, "#F6B9C3") + C(cx + 9, cy + 1, 1.1, "#FBE29A") + C(cx - 8, cy + 1, 1.2, "#D3C6F0") + critter(type, cx, cy + 2, 1.15);
+      }
       case "start":
         return box(cx - 2, cy + 2, 1.2, 14, tone(WOOD)) + poly([[cx - 3, cy - 15], [cx + 9, cy - 21], [cx + 9, cy - 14], [cx - 3, cy - 8]], "#FFF7EF", ' stroke="#E2A7A2" stroke-width="1"') +
           `<path d="M${cx - 0.5} ${cy - 12.5} l7 -3.5" stroke="#E2A7A2" stroke-width="1" stroke-linecap="round"/>`;
-      case "build": { // today's construction site: height grows with today's wear
-        const a = 12, h = 3 + 25 * p, cr = "#E8B860";
-        let s = box(cx, cy, a, h, tone("#EDE4DA").map((x) => x));
-        for (const q of [[cx - a, cy], [cx, cy + a / 2], [cx + a, cy]]) s += `<line x1="${q[0]}" y1="${q[1]}" x2="${q[0]}" y2="${q[1] - h - 5}" stroke="#C9A27E" stroke-width=".9"/>`;
-        s += `<path d="M${cx - a} ${cy - h - 5} L${cx} ${cy + a / 2 - h - 5} L${cx + a} ${cy - h - 5}" stroke="#C9A27E" stroke-width=".9" fill="none"/>`;
-        s += `<path d="M${cx + a + 3} ${cy + 1} V${cy - h - 24} M${cx + a + 6} ${cy - h - 22} H${cx - 6} M${cx - 2} ${cy - h - 22} v6" stroke="${cr}" stroke-width="1.6" stroke-linecap="round" fill="none"/>`;
-        return s;
-      }
     }
     return "";
   }
+  // the next tile: what it looks like while it is being made
+  function drawSite(site, cx, cy, p) {
+    if (site === "plant") {
+      const h = 2 + 7 * p;
+      return E(cx, cy + 1, 8, 3.5, "#C9A98C") + `<path d="M${cx} ${cy} v-${h.toFixed(1)}" stroke="#8DBB88" stroke-width="1.2"/>` +
+        E(cx - 2, cy - h * 0.6, 2, 1, "#9CC79A") + E(cx + 2, cy - h * 0.8, 2, 1, "#9CC79A");
+    }
+    if (site === "box") { // a moving box — someone is about to move in
+      const a = 6, h = 7;
+      return box(cx, cy, a, h, tone("#E3C49F")) + `<path d="M${pt([cx - a, cy - h])} L${pt([cx, cy + a / 2 - h])} L${pt([cx + a, cy - h])}" stroke="#C9A27E" stroke-width=".7" fill="none"/>` +
+        poly([[cx - 2, cy - h - 1], [cx + 2, cy - h - 3], [cx + 2, cy - h - 1.5], [cx - 2, cy - h + 0.5]], "#F6B9C3") + (p > 0.6 ? C(cx + 1, cy - h - 3, 0.6, INK) : "");
+    }
+    if (site === "small") {
+      return poly([[cx - 2, cy], [cx + 2, cy], [cx + 0.6, cy - 6], [cx - 0.6, cy - 6]], "#F2A86F") + `<path d="M${cx - 1.4} ${cy - 2.5} h2.8" stroke="#FFFDF8" stroke-width=".9"/>` +
+        E(cx + 6, cy + 1, 4, 2, "#E2D3C3") + C(cx - 7, cy, 1.2, "#C9A98C");
+    }
+    const a = 12, h = 3 + 25 * p, cr = "#E8B860";
+    let s = box(cx, cy, a, h, tone("#EDE4DA"));
+    for (const q of [[cx - a, cy], [cx, cy + a / 2], [cx + a, cy]]) s += `<line x1="${q[0]}" y1="${q[1]}" x2="${q[0]}" y2="${q[1] - h - 5}" stroke="#C9A27E" stroke-width=".9"/>`;
+    s += `<path d="M${cx - a} ${cy - h - 5} L${cx} ${cy + a / 2 - h - 5} L${cx + a} ${cy - h - 5}" stroke="#C9A27E" stroke-width=".9" fill="none"/>`;
+    s += `<path d="M${cx + a + 3} ${cy + 1} V${cy - h - 24} M${cx + a + 6} ${cy - h - 22} H${cx - 6} M${cx - 2} ${cy - h - 22} v6" stroke="${cr}" stroke-width="1.6" stroke-linecap="round" fill="none"/>`;
+    return s;
+  }
 
-  let townSig = "", popFrom = null, townNews = "";
+  let townSig = "", popFrom = null, guestPopFrom = null, townNews = "";
   function renderTown() {
     if (mode === "loading") return;
-    const now = Date.now(), T = townModel(now), n = T.items.length;
-    // news: tiles finished since you last looked
-    if (typeof S.townSeen !== "number" || S.townSeen > n) {
-      if (typeof S.townSeen !== "number" && n) { townNews = "これまでの記録から街ができました"; popFrom = 0; }
-      S = { ...S, townSeen: n }; persistState();
-    } else if (n > S.townSeen) {
-      const fresh = T.items.slice(S.townSeen).map((it) => KINDS[it.kind].name);
-      const blt = fresh.filter((x) => x !== "空き地");
-      townNews = blt.length ? `${blt.join("と")}${blt.length > 1 ? "が" : "が"}できました` : "きのうは空き地のまま。今日また建てよう";
-      popFrom = S.townSeen;
-      S = { ...S, townSeen: n }; persistState();
+    const now = Date.now(), T = townModel(now), n = T.items.length, g = T.guests.length;
+    // news: what finished since you last looked
+    if (typeof S.seenItems !== "number") {
+      if (n > 1 || g) { townNews = "これまでの装着時間から街ができました"; popFrom = 1; guestPopFrom = 0; }
+      S = { ...S, seenItems: n, seenGuests: g }; persistState();
+    } else if (n !== S.seenItems || g !== S.seenGuests) {
+      const parts = [];
+      if (n > S.seenItems) parts.push(T.items.slice(S.seenItems).map(thingName).join("と") + "ができました");
+      if (g > S.seenGuests) parts.push(`目標達成のごほうびに${T.guests.slice(S.seenGuests).map((x) => CRITTERS[x.v % CRITTERS.length][1]).join("と")}が遊びに来ました`);
+      if (parts.length) { townNews = parts.join("。"); popFrom = n > S.seenItems ? S.seenItems : null; guestPopFrom = g > S.seenGuests ? S.seenGuests : null; }
+      S = { ...S, seenItems: n, seenGuests: g }; persistState();
     }
     $("town-news").hidden = !townNews; $("town-news").textContent = townNews;
 
     const rank = RANKS.find(([min]) => T.pop >= min)[1];
     $("town-rank").textContent = rank;
     if (document.activeElement !== $("town-name")) $("town-name").value = S.townName || "わたしの街";
-    $("t-pop").textContent = T.pop; $("t-bld").textContent = T.bld; $("t-streak").textContent = T.streak + "日";
+    $("t-pop").textContent = T.pop; $("t-bld").textContent = n - 1; $("t-streak").textContent = T.streak + "日";
 
-    const pctTxt = Math.floor(T.pct * 100) + "%";
-    $("build-pct").textContent = T.next ? pctTxt : "";
-    $("build-bar").style.width = pctTxt;
-    $("build-bar").style.background = T.next === "grass" ? "var(--muted)" : T.next === "tree" ? "var(--mid)" : "var(--wear)";
-    const nm = T.next ? KINDS[T.next].name : "";
-    $("build-msg").textContent =
-      !T.next ? "" :
-      T.next === "start" ? "今日は記録の初日。夜0時にはじまりの看板が立ちます" :
-      T.next === "tree" ? (T.offNow ? "いまつけ直しても目標には届かなそう。最低ラインは守れて、木が1本植わります" : "今日は目標に届かなそう。このままなら木が1本植わります") :
-      T.next === "grass" ? "今日は最低ラインに届かなそう…。また明日建てよう" :
-      T.offNow ? `つけ直せば、今夜0時に${nm}が完成します` : `このままつけていれば、今夜0時に${nm}が完成します`;
+    const nm = thingName(T.next), site = THINGS[T.next.kind].site;
+    $("build-label").textContent = site === "box" ? `次は${nm}が引っ越してくる` : site === "plant" ? `次は${nm}` : `建設中：${nm}`;
+    $("build-pct").textContent = Math.floor(T.pct * 100) + "%";
+    $("build-bar").style.width = (T.pct * 100).toFixed(1) + "%";
+    $("build-bar").style.background = T.offNow ? "var(--muted)" : "var(--wear)";
+    let msg = T.offNow ? "外しているあいだは工事がお休み中。つけ直すと再開します" : `あと${dur(T.left)}つけていると、${nm}ができます`;
+    if (T.todayGuest) msg += `。今日の目標（${S.goal}時間）を達成すると、ごほうびにどうぶつが遊びに来ます`;
+    $("build-msg").textContent = msg;
 
     // draw (skip if nothing visible changed — saves work on the minute tick)
     const N = Math.max(5, (Math.ceil(Math.sqrt(n + 4)) | 1));
-    const stage = Math.round(T.pct * 20);
-    const sig = [N, T.items.map((i) => i.kind[0] + i.d).join(), T.next, stage, popFrom].join("|");
+    const sig = [N, n, g, T.next.k, Math.round(T.pct * 20), popFrom, guestPopFrom].join("|");
     if (sig === townSig) return;
     townSig = sig;
     const c = (N - 1) / 2, cells = [];
@@ -731,30 +858,54 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
     const ang = ([u, v]) => (Math.atan2(u + v, u - v) + 2 * Math.PI + 0.3) % (2 * Math.PI);
     cells.sort((p, q) => (Math.max(Math.abs(p[0]), Math.abs(p[1])) - Math.max(Math.abs(q[0]), Math.abs(q[1]))) || ang(p) - ang(q));
     const slot = new Map();
-    T.items.forEach((it, k) => slot.set(cells[k].join(), { ...it, k }));
-    if (T.next) slot.set(cells[n].join(), { kind: "build", d: "today", k: n });
+    T.items.forEach((it, k) => slot.set(cells[k].join(), { it }));
+    slot.set(cells[n].join(), { site });
+    // guests stand in front of something already built
+    T.guests.forEach((gu, j) => {
+      const key = cells[n > 1 ? 1 + ((j * 5) % (n - 1)) : 0].join(), s0 = slot.get(key);
+      (s0.guests = s0.guests || []).push({ ...gu, j });
+    });
 
     const X = (u, v) => (u - v) * 20, Y = (u, v) => (u + v) * 10;
     const hw = N * 20, hh = N * 10;
     let s = poly([[-hw, 0], [0, hh], [0, hh + 7], [-hw, 7]], "var(--soil)") + poly([[0, hh], [hw, 0], [hw, 7], [0, hh + 7]], "var(--soil-2)");
     let things = "";
+    const wrap = (g0, on, delay) => on ? `<g class="pop" style="animation-delay:${Math.min(1.5, delay).toFixed(2)}s">${g0}</g>` : g0;
     const order = cells.slice().sort((p, q) => (p[0] + p[1]) - (q[0] + q[1]) || p[0] - q[0]);
     for (const [u, v] of order) {
-      const x = X(u, v), y = Y(u, v), it = slot.get(u + "," + v);
-      const fill = it && (it.kind === "build" || it.kind === "start") ? "var(--sand)" : (Math.round(u + v) % 2 ? "var(--grass-2)" : "var(--grass)");
+      const x = X(u, v), y = Y(u, v), sl = slot.get(u + "," + v);
+      const sandy = sl && (sl.site === "build" || (sl.it && (sl.it.kind === "start" || sl.it.kind === "fountain")));
+      const fill = sandy ? "var(--sand)" : (Math.round(u + v) % 2 ? "var(--grass-2)" : "var(--grass)");
       s += poly([[x, y - 10], [x + 20, y], [x, y + 10], [x - 20, y]], fill, ' stroke="var(--surface)" stroke-opacity=".45" stroke-width=".6"');
-      if (it) {
-        const g = drawThing(it.kind, x, y, seedOf(it.d), T.pct);
-        things += popFrom !== null && it.k >= popFrom && it.kind !== "build" ? `<g class="pop" style="animation-delay:${Math.min(1.2, (it.k - popFrom) * 0.12)}s">${g}</g>` : g;
+      if (!sl) continue;
+      if (sl.site) things += drawSite(sl.site, x, y, T.pct);
+      if (sl.it) things += wrap(drawThing(sl.it, x, y), popFrom !== null && sl.it.k >= popFrom, (sl.it.k - popFrom) * 0.12);
+      for (const gu of sl.guests || []) {
+        const off = [[9, 4], [-9, 4], [0, 7], [12, -1], [-12, -1]][Math.floor(gu.j / Math.max(1, n - 1)) % 5];
+        things += wrap(critter(CRITTERS[gu.v % CRITTERS.length][0], x + off[0], y + off[1], 0.8), guestPopFrom !== null && gu.j >= guestPopFrom, 0.3 + (gu.j - guestPopFrom) * 0.12);
       }
     }
     // tiles are flat, so draw them all first, then things back-to-front
     const svg = $("town");
     svg.setAttribute("viewBox", `${-hw - 4} ${-hh - 52} ${hw * 2 + 8} ${hh * 2 + 64}`);
-    svg.setAttribute("aria-label", `${S.townName || "わたしの街"}：${rank}、人口${T.pop}人、建物${T.bld}軒`);
+    svg.setAttribute("aria-label", `${S.townName || "わたしの街"}：${rank}、人口${T.pop}人、できたもの${n - 1}個`);
     svg.innerHTML = s + things;
-    popFrom = null;
+    popFrom = null; guestPopFrom = null;
   }
+
+  /* ---------- notification: "外して1時間" via the free ntfy app ---------- */
+  // A web page can't run while the phone is locked, so the alert is booked on ntfy.sh
+  // when you take it off (delivered 1h later) and cancelled when you put it back on.
+  const NTFY = "https://ntfy.sh/", ALERT_AFTER = 60 * 60e3;
+  function ntfy(path, opts) { try { fetch(NTFY + path, { mode: "no-cors", keepalive: true, ...opts }).catch(() => {}); } catch (e) {} }
+  function bookAlert() {
+    if (!S.ntfyOn || !S.ntfyTopic || !S.offSince) return;
+    const at = S.offSince + ALERT_AFTER;
+    if (at - Date.now() < 15e3) return;
+    ntfy(`${S.ntfyTopic}/off?delay=${Math.floor(at / 1000)}&title=${encodeURIComponent("マウスピース")}&tags=tooth`,
+      { method: "POST", headers: { "Content-Type": "text/plain" }, body: "外して1時間たちました。そろそろつけ直そう" });
+  }
+  function cancelAlert() { if (S.ntfyTopic) ntfy(`${S.ntfyTopic}/off/delete`, { method: "GET" }); }
 
   function renderAll() {
     renderLive(); if (!editingId) renderList(); renderHistory(); renderTown();
@@ -823,6 +974,25 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
   function showBackup(t) { const m = $("backup-msg"); m.hidden = false; m.textContent = t; }
 
   /* ---------- start ---------- */
+  function renderNtfy() {
+    $("ntf-on").checked = !!S.ntfyOn; $("ntf-setup").hidden = !S.ntfyOn; $("ntf-topic").textContent = S.ntfyTopic || "";
+  }
+  $("ntf-on").addEventListener("change", () => {
+    const on = $("ntf-on").checked;
+    let topic = S.ntfyTopic;
+    if (on && !topic) { const b = new Uint8Array(10); crypto.getRandomValues(b); topic = "mouthpiece-" + [...b].map((x) => x.toString(16).padStart(2, "0")).join(""); }
+    S = { ...S, ntfyOn: on, ntfyTopic: topic }; persistState(); renderNtfy();
+    if (on) bookAlert(); else cancelAlert();
+  });
+  $("ntf-copy").addEventListener("click", async () => {
+    const m = $("ntf-msg"); m.hidden = false;
+    try { await navigator.clipboard.writeText(S.ntfyTopic); m.textContent = "コピーしました。ntfyに貼り付けてください"; }
+    catch (e) { m.textContent = "コピーできませんでした。名前を長押しして選んでください"; }
+  });
+  $("ntf-test").addEventListener("click", () => {
+    ntfy(`${S.ntfyTopic}?title=${encodeURIComponent("マウスピース")}&tags=tooth`, { method: "POST", headers: { "Content-Type": "text/plain" }, body: "テスト通知です。届いていれば準備OK" });
+    const m = $("ntf-msg"); m.hidden = false; m.textContent = "送りました。数秒でntfyに届くはずです";
+  });
   $("town-name").addEventListener("change", () => {
     const v = $("town-name").value.trim().slice(0, 16);
     S = { ...S, townName: v || null }; persistState(); renderTown();
@@ -847,7 +1017,7 @@ summary { cursor: pointer; font-size: 13px; color: var(--muted); }
   window.addEventListener("pageshow", () => { if (mode !== "loading") renderAll(); });
 
   function start() {
-    mode = "local"; loadLocal(); setNote("この端末に保存"); renderAll();
+    mode = "local"; loadLocal(); setNote("この端末に保存"); renderAll(); renderNtfy();
     try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
     if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
     window.addEventListener("storage", (e) => { if (e.key === KEY) { loadLocal(); renderAll(); } });
